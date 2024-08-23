@@ -88,26 +88,37 @@ func getLastId() (int, error) {
 	return lastid, nil
 }
 
-func (t Task) AddTask(name string) error {
+func (t Task) AddTask(names ...string) error {
 	lastId, err := getLastId()
 	if err != nil {
 		return err
 	}
-	newTaskId := lastId + 1
-	t.Id = newTaskId
-	t.Name = name
 
-	//covert time to the required string formant and Parse it
-	nowStr := time.Now().Format(time.RFC3339)
-	parsedTime, err := time.Parse(time.RFC3339, nowStr)
-	if err != nil {
-		return err
+	//increment the last Id based on the lastid from the file
+	taskId := lastId + 1
+
+	//using a slice wherer the new tasks will be placed
+	tSlice := make([]Task, len(names))
+
+	for i, name := range names {
+		t.Id = taskId
+		t.Name = name
+
+		//covert time to the required string formant and Parse it
+		nowStr := time.Now().Format(time.RFC3339)
+		parsedTime, err := time.Parse(time.RFC3339, nowStr)
+		if err != nil {
+			return err
+		}
+		t.CreatedAt = parsedTime
+		t.IsComplete = false
+		t.CompletedAt = time.Time{}
+		tSlice[i] = t
+
+		taskId++
 	}
-	t.CreatedAt = parsedTime
-	t.IsComplete = false
-	t.CompletedAt = time.Time{}
 
-	newTask, err := json.Marshal(t)
+	newTask, err := json.MarshalIndent(tSlice, "", "\t")
 	if err != nil {
 		return err
 	}
@@ -118,28 +129,37 @@ func (t Task) AddTask(name string) error {
 	}
 	defer file.Close()
 
-	//if the last id is zero this will imply there is no data currently in the file
-	//write the open and closing brakcet as this is required for Json Unmarshlling
-	if lastId == 0 {
-		file.Write([]byte("["))
-		defer file.Write([]byte("]"))
-	} else {
-		//if the file already has tasks last bracket has to removed so next task can be added
+	//if the lastId is 0 which implies no tasks were added yet
+	//remove the required elemers for proper json formatting
+	if lastId != 0 {
+		newTask = newTask[1:] // remove the first element of byte as this is [
 		fileInfo, err := file.Stat()
 		if err != nil {
 			return err
 		}
-
 		//Truncate the last byte from the file which is the closing bracket
 		file.Truncate(fileInfo.Size() - 1)
-		//write the commma and a new line charater
+		//There is space added which will also be removed
+		file.Truncate(fileInfo.Size() - 2)
 		file.Write([]byte(","))
-		file.Write([]byte("\n"))
-		defer file.Write([]byte("]"))
 	}
+
 	if _, err := file.Write(newTask); err != nil {
 		return err
 	}
 
 	return nil
 }
+
+// func (t Task) CompleteTask(id int) error {
+// 	tasks, err := allTasks()
+// 	if err != nil {
+// 		return err
+// 	}
+
+// 	for _, task := range tasks {
+// 		if task.Id == id {
+
+// 		}
+// 	}
+// }

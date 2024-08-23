@@ -1,8 +1,6 @@
 package cmd
 
 import (
-	"strings"
-
 	"github.com/spf13/cobra"
 	"github.com/tiwanakd/ToDo-CLI-JSON/tasks"
 )
@@ -35,7 +33,7 @@ var cmdAddTask = cobra.Command{
 	Long:  "add new task with the name passed as argument",
 	RunE: func(cmd *cobra.Command, args []string) error {
 		var task tasks.Task
-		return task.AddTask(strings.Join(args, " "))
+		return task.AddTask(args...)
 	},
 }
 
