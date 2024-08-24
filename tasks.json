@@ -1,44 +1,41 @@
 [
 	{
 		"id": 1,
-		"name": "learnGo",
-		"created_at": "2024-08-22T17:40:41-07:00",
+		"name": "Go",
+		"created_at": "2024-08-24T07:01:16-07:00",
 		"is_complete": false,
-		"completed_at": "0001-01-01T00:00:00Z"
+		"completed_at": "2006-01-02T15:04:05+07:00"
 	},
 	{
 		"id": 2,
-		"name": "Http",
-		"created_at": "2024-08-22T17:40:41-07:00",
-		"is_complete": false,
-		"completed_at": "0001-01-01T00:00:00Z"
+		"name": "HTMX",
+		"created_at": "2024-08-24T07:01:16-07:00",
+		"is_complete": true,
+		"completed_at": "2024-08-24T07:54:14-07:00"
+
 	},
 	{
 		"id": 3,
-		"name": "Templ",
-		"created_at": "2024-08-22T17:40:41-07:00",
-		"is_complete": false,
-		"completed_at": "0001-01-01T00:00:00Z"
+		"name": "API",
+		"created_at": "2024-08-24T07:01:16-07:00",
+		"is_complete": true,
+		"completed_at": "2024-08-24T07:54:47-07:00"
+
 	},
 	{
 		"id": 4,
-		"name": "Go to Gym",
-		"created_at": "2024-08-22T17:41:07-07:00",
-		"is_complete": false,
-		"completed_at": "0001-01-01T00:00:00Z"
+		"name": "TCP Server",
+		"created_at": "2024-08-24T07:01:16-07:00",
+		"is_complete": true,
+		"completed_at": "2024-08-24T07:55:43-07:00"
+
 	},
 	{
 		"id": 5,
-		"name": "Go to",
-		"created_at": "2024-08-22T17:41:36-07:00",
-		"is_complete": false,
-		"completed_at": "0001-01-01T00:00:00Z"
-	},
-	{
-		"id": 6,
-		"name": "build sever",
-		"created_at": "2024-08-22T17:41:36-07:00",
-		"is_complete": false,
-		"completed_at": "0001-01-01T00:00:00Z"
+		"name": "Backend",
+		"created_at": "2024-08-24T07:01:16-07:00",
+		"is_complete": true,
+		"completed_at": "2024-08-24T07:55:58-07:00"
+
 	}
 ]

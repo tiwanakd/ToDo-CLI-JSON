@@ -4,6 +4,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"os"
 	"text/tabwriter"
 	"time"
@@ -112,7 +113,12 @@ func (t Task) AddTask(names ...string) error {
 		}
 		t.CreatedAt = parsedTime
 		t.IsComplete = false
-		t.CompletedAt = time.Time{}
+
+		nilParsedTime, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05+07:00")
+		if err != nil {
+			return err
+		}
+		t.CompletedAt = nilParsedTime
 		tSlice[i] = t
 
 		taskId++
@@ -151,15 +157,58 @@ func (t Task) AddTask(names ...string) error {
 	return nil
 }
 
-// func (t Task) CompleteTask(id int) error {
-// 	tasks, err := allTasks()
-// 	if err != nil {
-// 		return err
-// 	}
+func (t Task) CompleteTask(id int) error {
+	file, err := os.OpenFile(jsonFileName, os.O_RDWR, 0644)
+	if err != nil {
+		return err
+	}
+	defer file.Close()
 
-// 	for _, task := range tasks {
-// 		if task.Id == id {
+	dec := json.NewDecoder(file)
 
-// 		}
-// 	}
-// }
+	//read the open bracket
+	_, err = dec.Token()
+	if err != nil {
+		return err
+	}
+
+	var matchedInputOffset int64
+	tSlice := make([]Task, 1)
+
+	for dec.More() {
+		currentInputOffSet := dec.InputOffset()
+		err := dec.Decode(&t)
+
+		if err != nil {
+			return err
+		}
+		if t.Id == id {
+			t.IsComplete = true
+			nowStr := time.Now().Format(time.RFC3339)
+			parsedTime, err := time.Parse(time.RFC3339, nowStr)
+			if err != nil {
+				return err
+			}
+			t.CompletedAt = parsedTime
+			matchedInputOffset = currentInputOffSet - matchedInputOffset
+			tSlice[0] = t
+			break
+		}
+	}
+
+	//fix the issue with first json element
+	file.Seek(matchedInputOffset, io.SeekStart)
+	updatedTask, _ := json.MarshalIndent(tSlice, "", "\t")
+	updatedTask = updatedTask[1 : len(updatedTask)-4]
+	file.Seek(matchedInputOffset, io.SeekStart)
+	file.Write([]byte(","))
+	file.Write(updatedTask)
+
+	// read closing bracket
+	_, err = dec.Token()
+	if err != nil {
+		return err
+	}
+
+	return nil
+}
