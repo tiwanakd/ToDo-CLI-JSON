@@ -114,7 +114,7 @@ func (t Task) AddTask(names ...string) error {
 		t.CreatedAt = parsedTime
 		t.IsComplete = false
 
-		nilParsedTime, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05+07:00")
+		nilParsedTime, err := time.Parse(time.RFC3339, "2006-01-02T15:04:05-07:00")
 		if err != nil {
 			return err
 		}
@@ -157,7 +157,7 @@ func (t Task) AddTask(names ...string) error {
 	return nil
 }
 
-func (t Task) CompleteTask(id int) error {
+func (t Task) CompleteTask(ids ...int) error {
 	file, err := os.OpenFile(jsonFileName, os.O_RDWR, 0644)
 	if err != nil {
 		return err
@@ -172,37 +172,56 @@ func (t Task) CompleteTask(id int) error {
 		return err
 	}
 
-	var matchedInputOffset int64
-	tSlice := make([]Task, 1)
+	idFound := false
 
-	for dec.More() {
-		currentInputOffSet := dec.InputOffset()
-		err := dec.Decode(&t)
+	for _, id := range ids {
+		var matchedInputOffset int64
+	inner:
+		for dec.More() {
+			currentInputOffSet := dec.InputOffset()
+			err := dec.Decode(&t)
 
-		if err != nil {
-			return err
-		}
-		if t.Id == id {
-			t.IsComplete = true
-			nowStr := time.Now().Format(time.RFC3339)
-			parsedTime, err := time.Parse(time.RFC3339, nowStr)
 			if err != nil {
 				return err
 			}
-			t.CompletedAt = parsedTime
-			matchedInputOffset = currentInputOffSet - matchedInputOffset
-			tSlice[0] = t
-			break
+
+			if t.Id == id {
+				t.IsComplete = true
+				nowStr := time.Now().Format(time.RFC3339)
+				parsedTime, err := time.Parse(time.RFC3339, nowStr)
+				if err != nil {
+					return err
+				}
+				t.CompletedAt = parsedTime
+				matchedInputOffset = currentInputOffSet - matchedInputOffset
+
+				fmt.Println(matchedInputOffset)
+				if matchedInputOffset == 1 {
+					file.Seek(matchedInputOffset+4, io.SeekStart)
+				} else {
+					file.Seek(matchedInputOffset+5, io.SeekStart)
+				}
+				updatedTask, err := json.MarshalIndent(t, "\t", "\t")
+				if err != nil {
+					return err
+				}
+				updatedTask = updatedTask[2 : len(updatedTask)-2]
+				fmt.Println(string(updatedTask))
+				file.Write(updatedTask)
+
+				idFound = true
+				break inner
+			}
+			if err == io.EOF {
+				idFound = false
+				break
+			}
 		}
 	}
 
-	//fix the issue with first json element
-	file.Seek(matchedInputOffset, io.SeekStart)
-	updatedTask, _ := json.MarshalIndent(tSlice, "", "\t")
-	updatedTask = updatedTask[1 : len(updatedTask)-4]
-	file.Seek(matchedInputOffset, io.SeekStart)
-	file.Write([]byte(","))
-	file.Write(updatedTask)
+	if !idFound {
+		return fmt.Errorf("no match for any of the given id(s)")
+	}
 
 	// read closing bracket
 	_, err = dec.Token()
