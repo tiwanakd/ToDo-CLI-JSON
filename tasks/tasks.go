@@ -1,11 +1,12 @@
 package tasks
 
 import (
+	"cmp"
 	"encoding/json"
 	"errors"
 	"fmt"
-	"io"
 	"os"
+	"slices"
 	"text/tabwriter"
 	"time"
 
@@ -55,7 +56,7 @@ func ListTasks(listAll bool) error {
 			if task.IsComplete {
 				fmt.Fprintf(tw, "%d\t%s\t%s\t%v\t%s\n", task.Id, task.Name, timediff.TimeDiff(task.CreatedAt), task.IsComplete, task.CompletedAt.Format(time.RFC1123))
 			} else {
-				fmt.Fprintf(tw, "%d\t%s\t%s\t%v\n", task.Id, task.Name, timediff.TimeDiff(task.CreatedAt), task.IsComplete)
+				fmt.Fprintf(tw, "%d\t%s\t%s\t%v\t%s\n", task.Id, task.Name, timediff.TimeDiff(task.CreatedAt), task.IsComplete, "N/A")
 			}
 		}
 	} else {
@@ -158,76 +159,103 @@ func (t Task) AddTask(names ...string) error {
 }
 
 func (t Task) CompleteTask(ids ...int) error {
-	file, err := os.OpenFile(jsonFileName, os.O_RDWR, 0644)
-	if err != nil {
-		return err
-	}
-	defer file.Close()
-
-	dec := json.NewDecoder(file)
-
-	//read the open bracket
-	_, err = dec.Token()
+	tasks, err := allTasks()
 	if err != nil {
 		return err
 	}
 
-	idFound := false
+	//create a map to hold all the ids provided
+	//set the values to false; these will be set to true if id match is found
+	//this allows to track all the invalid ids
+	idMap := make(map[int]bool)
+	for _, id := range ids {
+		idMap[id] = false
+	}
 
 	for _, id := range ids {
-		var matchedInputOffset int64
 	inner:
-		for dec.More() {
-			currentInputOffSet := dec.InputOffset()
-			err := dec.Decode(&t)
-
-			if err != nil {
-				return err
-			}
-
-			if t.Id == id {
-				t.IsComplete = true
-				nowStr := time.Now().Format(time.RFC3339)
-				parsedTime, err := time.Parse(time.RFC3339, nowStr)
+		for i := range tasks {
+			taskId := tasks[i].Id
+			if taskId == id {
+				tasks[i].IsComplete = true
+				parsedTime, err := time.Parse(time.RFC3339, time.Now().Format(time.RFC3339))
 				if err != nil {
 					return err
 				}
-				t.CompletedAt = parsedTime
-				matchedInputOffset = currentInputOffSet - matchedInputOffset
-
-				fmt.Println(matchedInputOffset)
-				if matchedInputOffset == 1 {
-					file.Seek(matchedInputOffset+4, io.SeekStart)
-				} else {
-					file.Seek(matchedInputOffset+5, io.SeekStart)
-				}
-				updatedTask, err := json.MarshalIndent(t, "\t", "\t")
-				if err != nil {
-					return err
-				}
-				updatedTask = updatedTask[2 : len(updatedTask)-2]
-				fmt.Println(string(updatedTask))
-				file.Write(updatedTask)
-
-				idFound = true
+				tasks[i].CompletedAt = parsedTime
+				idMap[id] = true
+				fmt.Fprintln(os.Stdout, "Task Completed:", tasks[i].Name)
 				break inner
-			}
-			if err == io.EOF {
-				idFound = false
-				break
 			}
 		}
 	}
 
-	if !idFound {
-		return fmt.Errorf("no match for any of the given id(s)")
+	//print out the invalid ids
+	for id, found := range idMap {
+		if !found {
+			fmt.Fprintln(os.Stderr, "invalid id:", id)
+		}
 	}
 
-	// read closing bracket
-	_, err = dec.Token()
+	completedTasks, err := json.MarshalIndent(tasks, "", "\t")
 	if err != nil {
 		return err
 	}
 
+	return os.WriteFile(jsonFileName, completedTasks, 0644)
+}
+
+func (t Task) DeleteTask(ids ...int) error {
+
+	tasks, err := allTasks()
+	if err != nil {
+		return err
+	}
+
+	idMap := make(map[int]bool)
+	for _, id := range ids {
+		idMap[id] = false
+	}
+
+	//create a slice that will hold the indexes of task to be deleted
+	var deleteIndexs []int
+
+	for _, id := range ids {
+		for i, task := range tasks {
+			if task.Id == id {
+				idMap[id] = true
+				deleteIndexs = append(deleteIndexs, i)
+			}
+		}
+	}
+
+	for id, found := range idMap {
+		if !found {
+			fmt.Fprintln(os.Stderr, "invalid id:", id)
+		}
+	}
+
+	//procced to delete if there are any deleteindexes
+	if len(deleteIndexs) > 0 {
+		//sort the deleteindex slice in decending order before proceeding to delete from the tasks slice
+		//this will ensusre that there is no out of bounds panic
+		slices.SortFunc(deleteIndexs, func(a, b int) int {
+			return cmp.Compare(b, a)
+		})
+
+		for _, deleteIndex := range deleteIndexs {
+			fmt.Fprintln(os.Stdout, "deleting task:", tasks[deleteIndex].Name)
+			tasks = slices.Delete(tasks, deleteIndex, deleteIndex+1)
+		}
+
+		updatedTasks, err := json.MarshalIndent(tasks, "", "\t")
+		if err != nil {
+			return err
+		}
+
+		if err := os.WriteFile(jsonFileName, updatedTasks, 0644); err != nil {
+			return err
+		}
+	}
 	return nil
 }

@@ -2,17 +2,13 @@ package main
 
 import (
 	"fmt"
+	"os"
 
-	"github.com/tiwanakd/ToDo-CLI-JSON/tasks"
+	"github.com/tiwanakd/ToDo-CLI-JSON/cmd"
 )
 
 func main() {
-	// if err := cmd.Execute(); err != nil {
-	// 	fmt.Fprintln(os.Stderr, err)
-	// }
-	var t tasks.Task
-	if err := t.CompleteTask(2, 3, 4); err != nil {
-		fmt.Println(err)
+	if err := cmd.Execute(); err != nil {
+		fmt.Fprintln(os.Stderr, err)
 	}
-
 }
